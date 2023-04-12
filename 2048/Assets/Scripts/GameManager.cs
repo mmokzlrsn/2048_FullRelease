@@ -37,7 +37,12 @@ public class GameManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+        if (_currentState != GameState.WaitInput ) return;
+
+        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        {
+            Shift(Vector2.left);
+        }
     }
 
     void GenerateGrid()
@@ -76,6 +81,8 @@ public class GameManager : MonoBehaviour
         {
             var block = Instantiate(_blockPrefab, node.Poz, Quaternion.identity);
             block.Init(GetBlockTypeByValue(Random.value > 0.8 ? 4 : 2));
+            block.SetBlock(node);
+            _blocks.Add(block);
         }
 
         if (freeNodes.Count() == 1)
@@ -84,15 +91,47 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        else
-        {
-            ChangeState(GameState.WaitInput);
-        }
+
+        ChangeState(GameState.WaitInput);
+        
     }
+
+    void Shift(Vector2 dir)
+    {
+        var ordererdBlocks = _blocks.OrderBy(b => b.Poz.x).ThenBy(b => b.Poz.y).ToList();
+        if (dir == Vector2.right || dir == Vector2.up) ordererdBlocks.Reverse();
+
+        foreach (var block in ordererdBlocks)
+        {
+            var next = block.Node;
+            do
+            {
+                block.SetBlock(next);
+
+                var possibleNode = GetNodeAtPosition(next.Poz + dir);
+                if (possibleNode != null)
+                {
+                    if (possibleNode.OccupiedBlock == null) next = possibleNode;
+                }
+
+            } while (next != block.Node);
+
+            block.transform.position = block.Node.Poz;
+        }
+
+    }
+
+    private Node GetNodeAtPosition(Vector2 poz)
+    {
+        return _nodes.FirstOrDefault(n => n.Poz == poz);
+    }
+
+     
 
 
     void ChangeState(GameState newState)
     {
+        _currentState = newState;
         switch (newState)
         {
             case GameState.GenerateLevel:
