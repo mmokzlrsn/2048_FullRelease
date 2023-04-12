@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Random = UnityEngine.Random;
+using DG.Tweening;
+
 
 public class GameManager : MonoBehaviour
 {
@@ -14,6 +16,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] private Block _blockPrefab;
     [SerializeField] private SpriteRenderer _boardPrefab;
     [SerializeField] private List<BlockType> _types;
+    [SerializeField] private float _travelTime = 0.2f;
+    [SerializeField] private Ease _easeType;
 
     private List<Node> _nodes;
     private List<Block> _blocks;
@@ -38,10 +42,30 @@ public class GameManager : MonoBehaviour
     void Update()
     {
         if (_currentState != GameState.WaitInput ) return;
+        if (_currentState == GameState.Moving) return;
+        Movement();
+    }
 
+    void Movement()
+    {
         if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
             Shift(Vector2.left);
+        }
+
+        if (Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            Shift(Vector2.right);
+        }
+
+        if (Input.GetKeyDown(KeyCode.UpArrow))
+        {
+            Shift(Vector2.up);
+        }
+
+        if (Input.GetKeyDown(KeyCode.DownArrow))
+        {
+            Shift(Vector2.down);
         }
     }
 
@@ -98,6 +122,8 @@ public class GameManager : MonoBehaviour
 
     void Shift(Vector2 dir)
     {
+        ChangeState(GameState.Moving);
+
         var ordererdBlocks = _blocks.OrderBy(b => b.Poz.x).ThenBy(b => b.Poz.y).ToList();
         if (dir == Vector2.right || dir == Vector2.up) ordererdBlocks.Reverse();
 
@@ -111,12 +137,25 @@ public class GameManager : MonoBehaviour
                 var possibleNode = GetNodeAtPosition(next.Poz + dir);
                 if (possibleNode != null)
                 {
-                    if (possibleNode.OccupiedBlock == null) next = possibleNode;
+                    //if possible merge
+                    if (possibleNode.OccupiedBlock != null && possibleNode.OccupiedBlock.CanMerge(block.Value))
+                    {
+                        block.MergeBlock(possibleNode.OccupiedBlock);
+                    }
+                    //or check for move next stop?
+                    else if (possibleNode.OccupiedBlock == null) next = possibleNode;
+
+                    //end while loop
                 }
 
             } while (next != block.Node);
 
-            block.transform.position = block.Node.Poz;
+            //block.transform.position = block.Node.Poz;
+            block.transform.DOMove(block.Node.Poz, _travelTime).SetEase(_easeType)
+                .OnComplete(() =>
+                {
+                    ChangeState(GameState.WaitInput);
+                });
         }
 
     }

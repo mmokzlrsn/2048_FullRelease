@@ -264,6 +264,8 @@ MonoBehaviour:
     Color: {r: 0.6313726, g: 0.08235292, b: 0.53818315, a: 1}
   - Value: 2048
     Color: {r: 0.08235292, g: 0.57303673, b: 0.6313726, a: 1}
+  _travelTime: 0.2
+  _easeType: 17
 --- !u!4 &941665498
 Transform:
   m_ObjectHideFlags: 0

@@ -7,6 +7,8 @@ public class Block : MonoBehaviour
 {
     public Node Node;
     public int Value;
+    public Block MergingBlock;
+    public bool Merging;
 
     public Vector2 Poz => transform.position;
     [SerializeField] private SpriteRenderer _renderer;
@@ -31,4 +33,16 @@ public class Block : MonoBehaviour
         Node = node;
         Node.OccupiedBlock = this;
     }
+
+    public void MergeBlock(Block blockToMergeWith)
+    {
+        MergingBlock = blockToMergeWith;
+
+        Node.OccupiedBlock = null;
+
+        blockToMergeWith.Merging = true;
+    }
+
+    public bool CanMerge(int value) => value == Value & !Merging && MergingBlock == null;
+
 }
