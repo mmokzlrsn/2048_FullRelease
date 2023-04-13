@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using UnityEngine;
 using Random = UnityEngine.Random;
 using DG.Tweening;
@@ -18,6 +19,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private List<BlockType> _types;
     [SerializeField] private float _travelTime = 0.2f;
     [SerializeField] private Ease _easeType;
+    [SerializeField] private int _winCondition = 64;
 
     private List<Node> _nodes;
     private List<Block> _blocks;
@@ -103,22 +105,28 @@ public class GameManager : MonoBehaviour
 
         foreach (var node in freeNodes.Take(amount))
         {
-            var block = Instantiate(_blockPrefab, node.Poz, Quaternion.identity);
-            block.Init(GetBlockTypeByValue(Random.value > 0.8 ? 4 : 2));
-            block.SetBlock(node);
-            _blocks.Add(block);
+            SpawnBlock(node, Random.value > 0.8 ? 4 : 2);
         }
 
         if (freeNodes.Count() == 1)
         {
-            //lose
+            ChangeState(GameState.Lose);
             return;
         }
 
 
-        ChangeState(GameState.WaitInput);
+        ChangeState(_blocks.Any(b=>b.Value == _winCondition) ? GameState.Win : GameState.WaitInput);
         
     }
+
+    void SpawnBlock(Node node, int value)
+    {
+        var block = Instantiate(_blockPrefab, node.Poz, Quaternion.identity);
+        block.Init(GetBlockTypeByValue(value));
+        block.SetBlock(node);
+        _blocks.Add(block);
+    }
+
 
     void Shift(Vector2 dir)
     {
@@ -150,14 +158,37 @@ public class GameManager : MonoBehaviour
 
             } while (next != block.Node);
 
-            //block.transform.position = block.Node.Poz;
-            block.transform.DOMove(block.Node.Poz, _travelTime).SetEase(_easeType)
-                .OnComplete(() =>
-                {
-                    ChangeState(GameState.WaitInput);
-                });
+            ////block.transform.position = block.Node.Poz;
+            //block.transform.DOMove(block.Node.Poz, _travelTime).SetEase(_easeType)
+            //    .OnComplete(() =>
+            //    {
+            //        ChangeState(GameState.WaitInput);
+            //    });
+
+           
+
+            
         }
 
+        var sequence = DOTween.Sequence();
+
+        foreach (var block in ordererdBlocks)
+        {
+            var movePoint = block.MergingBlock != null ? block.MergingBlock.Node.Poz : block.Node.Poz;
+
+            sequence.Insert(0, block.transform.DOMove(movePoint, _travelTime)).SetEase(_easeType);
+
+        }
+
+        sequence.OnComplete(() =>
+        {
+            foreach (var block in ordererdBlocks.Where(b => b.MergingBlock != null))
+            {
+                MergeBlocks(block.MergingBlock,block);
+            }
+
+            ChangeState(GameState.SpawnBlocks);
+        });
     }
 
     private Node GetNodeAtPosition(Vector2 poz)
@@ -165,7 +196,21 @@ public class GameManager : MonoBehaviour
         return _nodes.FirstOrDefault(n => n.Poz == poz);
     }
 
-     
+
+    void MergeBlocks(Block baseBlock, Block mergingBlock)
+    {
+        SpawnBlock(baseBlock.Node, baseBlock.Value * 2);
+
+        RemoveBlock(baseBlock);
+        RemoveBlock(mergingBlock);
+        
+    }
+
+    void RemoveBlock(Block block)
+    {
+        _blocks.Remove(block);
+        Destroy(block.gameObject);
+    }
 
 
     void ChangeState(GameState newState)
@@ -185,6 +230,7 @@ public class GameManager : MonoBehaviour
             case GameState.Moving:
                 break;
             case GameState.Win:
+                Debug.Log("win");
                 break;
             case GameState.Lose:
                 break;
